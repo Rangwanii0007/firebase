@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ad Watch Rewards</title>
+</head>
+<body>
+  <h1>Welcome to Ad Watch Rewards 🚀</h1>
+  <button id="loginBtn">Login with Google</button>
+  <p id="userInfo"></p>
+
+  <!-- Firebase SDKs -->
+  <script type="module">
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ✅ Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDaAMcSZSigXawYiD7ThoB-kXMdoa9cgyY",
+      authDomain: "adwatchrewardsapp.firebaseapp.com",
+      projectId: "adwatchrewardsapp",
+      storageBucket: "adwatchrewardsapp.firebasestorage.app",
+      messagingSenderId: "782268735936",
+      appId: "1:782268735936:web:ea82e5be5d0f44949ba825",
+      measurementId: "G-4NG2564HTK"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // ✅ Login Button
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Save user in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        name: user.displayName,
+        email: user.email,
+        coins: 0
+      }, { merge: true });
+
+      document.getElementById("userInfo").innerText = "Hello " + user.displayName;
+    });
+  </script>
+</body>
+</html>

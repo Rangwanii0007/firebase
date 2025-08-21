@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+</head>
+<body>
+  <h1>Admin Dashboard 🔑</h1>
+  <div id="usersList"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ✅ Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDaAMcSZSigXawYiD7ThoB-kXMdoa9cgyY",
+      authDomain: "adwatchrewardsapp.firebaseapp.com",
+      projectId: "adwatchrewardsapp",
+      storageBucket: "adwatchrewardsapp.firebasestorage.app",
+      messagingSenderId: "782268735936",
+      appId: "1:782268735936:web:ea82e5be5d0f44949ba825",
+      measurementId: "G-4NG2564HTK"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadUsers() {
+      const querySnapshot = await getDocs(collection(db, "users"));
+      let html = "<h2>Registered Users</h2><ul>";
+      querySnapshot.forEach((doc) => {
+        const user = doc.data();
+        html += `<li>${user.name} | ${user.email} | Coins: ${user.coins}</li>`;
+      });
+      html += "</ul>";
+      document.getElementById("usersList").innerHTML = html;
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>
