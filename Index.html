@@ -2754,70 +2754,112 @@
         });
     </script>
 //TREAKCER
-<!-- ----- PASTE THIS INTO index.html BEFORE </body> ----- -->
+
+    
+
+
+
+    <!-- 🔽 Referral & Engagement tracker (paste right before </body>) -->
 <script type="module">
-/*
-  Referral recorder
-  - Writes docs to collection: "referrals"
-  - Doc ID: "{friend_lowercase}_{YYYY-MM-DD}"
-  - Fields: { name, date, count }
-*/
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc,
+    serverTimestamp, collection, addDoc
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getFirestore, doc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+  // ✅ Your Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyDaAMcSZSigXawYiD7ThoB-kXMdoa9cgyY",
+    authDomain: "adwatchrewardsapp.firebaseapp.com",
+    projectId: "adwatchrewardsapp",
+    storageBucket: "adwatchrewardsapp.firebasestorage.app",
+    messagingSenderId: "782268735936",
+    appId: "1:782268735936:web:ea82e5be5d0f44949ba825",
+    measurementId: "G-4NG2564HTK"
+  };
 
-// ---- Your Firebase config (use exactly this provided one) ----
-const firebaseConfig = {
-  apiKey: "AIzaSyDaAMcSZSigXawYiD7ThoB-kXMdoa9cgyY",
-  authDomain: "adwatchrewardsapp.firebaseapp.com",
-  projectId: "adwatchrewardsapp",
-  storageBucket: "adwatchrewardsapp.firebasestorage.app",
-  messagingSenderId: "782268735936",
-  appId: "1:782268735936:web:ea82e5be5d0f44949ba825",
-  measurementId: "G-4NG2564HTK"
-};
-// ---------------------------------------------------------------
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// List of allowed friend names (lowercase)
-const allowedFriends = ["nadeem","ikram","shahid","waheed","naseer"];
-
-// Run recorder inside an async IIFE
-(async function recordReferralIfPresent(){
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const refRaw = params.get("ref");
-    if (!refRaw) return; // no referral param — do nothing
-
-    const ref = String(refRaw).trim().toLowerCase();
-    if (!allowedFriends.includes(ref)) {
-      console.warn("Referral ignored (not in allowed list):", ref);
-      return;
-    }
-
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    const docId = `${ref}_${today}`; // e.g., nadeem_2025-08-20
-    const refDoc = doc(db, "referrals", docId);
-
-    // Try to increment atomically; if doc doesn't exist, create it with count 1
-    await updateDoc(refDoc, {
-      count: increment(1),
-      name: ref,
-      date: today
-    }).catch(async (err) => {
-      // If update fails (most likely doc not exist), create document
-      await setDoc(refDoc, { name: ref, date: today, count: 1 });
-    });
-
-    console.log(`Referral recorded: ${ref} (${today})`);
-  } catch (e) {
-    console.error("Referral recorder error:", e);
+  // --- helpers ---
+  function uuid() {
+    return ([1e7]+-1e3+-4e3+-8e3+-1e11)
+      .replace(/[018]/g, c =>
+        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+      );
   }
-})();
+  function todayYMD() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  async function getIP() {
+    try {
+      const r = await fetch("https://api.ipify.org?format=json", { cache: "no-store" });
+      const j = await r.json();
+      return j.ip || "unknown";
+    } catch(e) {
+      console.warn("IP fetch failed", e);
+      return "unknown";
+    }
+  }
+
+  // --- unique client id per browser/device ---
+  let clientId = localStorage.getItem("clientId");
+  if (!clientId) {
+    clientId = uuid();
+    localStorage.setItem("clientId", clientId);
+  }
+
+  // --- referral name from ?ref= (locked on first creation) ---
+  const params = new URLSearchParams(location.search);
+  const refParam = params.get("ref");
+  const referredByIncoming = refParam ? String(refParam).trim() : "direct";
+
+  (async () => {
+    const ip = await getIP();
+    const userRef = doc(db, "users", clientId);
+    const snap = await getDoc(userRef);
+    const today = todayYMD();
+
+    try {
+      if (!snap.exists()) {
+        // first time visitor on this browser
+        await setDoc(userRef, {
+          referredBy: referredByIncoming,    // lock on first write
+          ip: ip,
+          signupAt: serverTimestamp(),
+          lastActive: serverTimestamp(),
+          lastActiveYMD: today,
+          visits: 1
+        });
+      } else {
+        // returning visitor
+        const data = snap.data();
+        await updateDoc(userRef, {
+          lastActive: serverTimestamp(),
+          lastActiveYMD: today,
+          visits: (data.visits || 0) + 1,
+          referredBy: data.referredBy || referredByIncoming,
+          ip: data.ip || ip
+        });
+      }
+
+      // optional: append visit log (for future charts)
+      await addDoc(collection(db, "visitLogs"), {
+        clientId,
+        referredBy: referredByIncoming,
+        ip,
+        when: serverTimestamp(),
+        ymd: today
+      });
+    } catch (err) {
+      console.error("Firestore write failed:", err);
+    }
+  })();
 </script>
-<!-- ----- end recorder ----- -->
+<!-- 🔼 End tracker -->
+
 
 </body>
 </html>
+
